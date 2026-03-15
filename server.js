@@ -1,0 +1,43 @@
+const express = require("express");
+const bodyParser = require("body-parser");
+const session = require("express-session");
+const path = require("path");
+const authRoutes = require("./routes/auth");
+const { requireAuth, roleRedirects } = require("./middleware/authMiddleware");
+const adminRoutes = require("./routes/admin");
+const operatorRoutes = require("./routes/operator");
+const recallRoutes = require("./routes/recall");
+require("dotenv").config();
+
+const PORT = process.env.PORT;
+const app = express();
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static("public"));
+
+// Session setup
+app.use(session({
+    secret: process.env.SESSION_SECRET || "supersecretkey",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 60 * 60 * 1000 } // 1 hour
+}));
+
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/operator", operatorRoutes);
+app.use("/api/recall", recallRoutes);
+
+// Redirect based on user role
+app.get("/:role/dashboard", requireAuth(), (req, res) => {
+      const redirectUrl = roleRedirects[req.session.user.role];
+      res.sendFile(path.join(__dirname, "/dashboards", redirectUrl));
+});
+
+// Default route
+app.get("/", (req, res) => res.redirect("/index.html"));
+
+// Start server
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

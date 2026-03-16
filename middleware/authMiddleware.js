@@ -8,10 +8,12 @@ const roleRedirects = {
 
 function requireAuth() {
     return (req, res, next) => {
+        const userRole = req.session.user.role;
+        console.log("Checking auth for:", req.params.role, "Session user:", userRole);
         if (!req.session.user){
           res.redirect("/index.html");
         }
-        else if (req.params.role != req.session.user.role) {
+        else if (req.params.role != user) {
           res.json({ message: "Access denied." });
         }
         else{

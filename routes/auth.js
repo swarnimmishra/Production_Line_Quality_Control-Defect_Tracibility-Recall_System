@@ -33,7 +33,13 @@ router.post("/signup", async (req, res) => {
 
     if (error) throw error;
 
+<<<<<<< HEAD
     res.status(201).json({ message: "User created successfully" });
+=======
+    //res.status(201).json({ message: "User created successfully" });
+    // Redirect to login page
+    res.redirect("/index.html");
+>>>>>>> repo-b/main
 
     // Save session
     req.session.user = { user_id: user.user_id, role: user.role, name: user.name };
@@ -72,7 +78,23 @@ router.post("/login", async (req, res) => {
     // Save session
     req.session.user = { user_id: user.user_id, role: user.role, name: user.name };
 
+<<<<<<< HEAD
     res.json({ message: "Login successful", redirect: true, user });
+=======
+    //res.json({ message: "Login successful", redirect: true, user });
+    // 🔹 Role based redirect
+    console.log(req.session.user);
+    if (user.role === "Admin") {
+      return res.redirect("/admin/dashboard");
+    }
+
+    if (user.role === "Operator") {
+      return res.redirect("/operator/dashboard");
+    }
+
+    // fallback
+    res.redirect("/");
+>>>>>>> repo-b/main
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });

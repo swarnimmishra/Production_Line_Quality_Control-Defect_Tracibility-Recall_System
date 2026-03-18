@@ -19,12 +19,12 @@ router.post("/trace", async (req, res) => {
             .eq("batch_id", batch_id);
 
         if (error) throw error;
-
+        
         if (!data || data.length === 0) {
             return res.json({ shipments: [] });
         }
 
-        res.json({ shipments: data });
+        res.status(201).json({ message: "Shipments found", shipments: data });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error" });

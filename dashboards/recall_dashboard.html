@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supply Manager - Recall Dashboard</title>
+
     <style>
         * {
             margin: 0;
@@ -14,32 +15,28 @@
         }
 
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
         }
 
         .dashboard-container {
             background: #fff;
-            padding: 2.5rem;
+            padding: 2rem;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
+            max-width: 900px;
+            margin: auto;
         }
 
         h2 {
-            margin-bottom: 0.5rem;
             color: #333;
+            margin-bottom: 5px;
         }
 
         p {
             color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 15px;
         }
 
         input {
@@ -48,12 +45,6 @@
             margin-bottom: 1rem;
             border: 1px solid #ddd;
             border-radius: 6px;
-            outline: none;
-            transition: 0.3s;
-        }
-
-        input:focus {
-            border-color: #764ba2;
         }
 
         .btn {
@@ -64,44 +55,151 @@
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 1rem;
             font-weight: bold;
-            transition: 0.3s;
         }
 
         .btn:hover {
             background: #5a378c;
         }
 
-        .toggle-text {
-            margin-top: 1rem;
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            background: #e6fffa;
+            color: #2c7a7b;
+            display: none;
         }
 
-        .toggle-text span {
-            color: #764ba2;
-            cursor: pointer;
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+            display: none;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #764ba2;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
             font-weight: bold;
         }
 
-        .hidden {
-            display: none;
+        .shipped {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .pending {
+            background: #fefcbf;
+            color: #744210;
         }
     </style>
 </head>
 
 <body>
+
     <div class="dashboard-container">
-        <div id="recall-form" class="form-box">
+
+        <!-- Recall Form -->
+        <div id="recall-form">
             <h2>Recall Portal</h2>
             <p>Initiate Shipment Trace</p>
-            <form action="/" method="POST">
-                <input type="text" name="batch_id" placeholder="Enter defective Batch ID" required>
+
+            <form>
+                <input type="text" id="batch_id" placeholder="Enter defective Batch ID" required>
                 <button type="submit" class="btn">Load Affected Shipments</button>
             </form>
-
         </div>
 
+        <!-- Message -->
+        <div id="message" class="message"></div>
+
+        <!-- Shipment Table -->
+        <table id="shipment-table">
+            <thead>
+                <tr>
+                    <th>Shipment ID</th>
+                    <th>Batch ID</th>
+                    <th>Customer</th>
+                    <th>Delivery Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
     </div>
+
+    <script>
+        const recallForm = document.querySelector('#recall-form form');
+
+        recallForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const batch_id = document.getElementById('batch_id').value;
+
+            const res = await fetch('/api/recall/trace', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ batch_id })
+            });
+
+            const data = await res.json();
+
+            console.log("Trace response:", data);
+
+            // Show message
+            const messageDiv = document.getElementById('message');
+            messageDiv.style.display = 'block';
+            messageDiv.innerText = data.message || "No message";
+
+            // Show shipments
+            const table = document.getElementById('shipment-table');
+            const tbody = table.querySelector('tbody');
+            tbody.innerHTML = '';
+
+            if (data.shipments && data.shipments.length > 0) {
+                table.style.display = 'table';
+
+                data.shipments.forEach(shipment => {
+                    const row = document.createElement('tr');
+
+                    row.innerHTML = `
+                    <td>${shipment.shipment_id}</td>
+                    <td>${shipment.batch_id}</td>
+                    <td>${shipment.customer_name}</td>
+                    <td>${shipment.delivery_date}</td>
+                    <td>
+                        <span class="status ${shipment.status.toLowerCase()}">
+                            ${shipment.status}
+                        </span>
+                    </td>
+                `;
+
+                    tbody.appendChild(row);
+                });
+
+            } else {
+                table.style.display = 'none';
+            }
+        });
+    </script>
 
 </body>
 

@@ -1,58 +1,249 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Audit Logs</title>
+
     <style>
-        body { font-family: 'Courier New', Courier, monospace; background-color: #e9ecef; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; border-top: 5px solid #6c757d; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h1, h2 { color: #343a40; font-family: Arial, sans-serif; }
-        
-        .logout-btn { background-color: #dc3545; color: white; border: none; cursor: pointer; font-weight: bold; width: auto; float: right; font-size: 14px; padding: 8px 15px; border-radius: 4px; }
-        
-        /* Search/Filter Bar */
-        .filter-section { background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 20px; }
-        input[type="text"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-        /* Secure Table Styling */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: left; }
-        th { background-color: #343a40; color: white; font-family: Arial, sans-serif; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
-        tr:hover { background-color: #e2e6ea; }
-        
-        /* Color-code specific actions for quick scanning */
-        .action-fail { color: #dc3545; font-weight: bold; }
-        .action-pass { color: #28a745; font-weight: bold; }
-        .action-halt { color: #fd7e14; font-weight: bold; background-color: #fff3cd; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .logout-btn:hover {
+            background: #b02a37;
+        }
+
+        .filter-section {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #764ba2;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #764ba2;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        tr:hover {
+            background: #f1f1f1;
+        }
+
+        .status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .fail {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .pass {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .halt {
+            background: #fff3cd;
+            color: #664d03;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
     </style>
-
 </head>
+
 <body>
 
     <div class="container">
-        <button class="logout-btn" onclick="logout()">Logout</button>
-        <h1>Security & Audit Trail</h1>
-        <p>Immutable log of all critical system actions. This data cannot be altered or deleted.</p>
+
+        <div class="header">
+            <h1>Audit Logs</h1>
+            <!-- <button class="logout-btn" onclick="logout()">Logout</button> -->
+        </div>
+
+        <p>Secure record of all system activities.</p>
 
         <div class="filter-section">
-            <input type="text" id="searchInput" placeholder="Search logs by User ID, Role, or Action Type..." onkeyup="filterLogs()">
+            <input type="text" id="searchInput" placeholder="Search by User ID or Action..." onkeyup="filterLogs()">
         </div>
 
         <table>
             <thead>
                 <tr>
-                    <th style="width: 15%;">Timestamp</th>
-                    <th style="width: 10%;">User ID</th>
-                    <th style="width: 20%;">Action Type</th>
+                    <th>Timestamp</th>
+                    <th>User ID</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody id="auditTableBody">
-                <tr><td colspan="5" style="text-align: center;">Loading secure logs...</td></tr>
+                <tr>
+                    <td colspan="3" class="loading">Loading logs...</td>
+                </tr>
             </tbody>
         </table>
+
     </div>
 
+    <script>
+
+        var logs = [];
+
+        async function fetchLogs() {
+            const res = await fetch('/api/auditor/logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({})
+            });
+
+            const data = await res.json();
+
+            if (data.logs) {
+                logs = data.logs;
+                renderLogs(logs);
+                console.log("Logs fetched successfully:", logs);
+            } else {
+                logs = [];
+                renderLogs([]);
+            }
+        }
+
+        fetchLogs();
+
+        // Example data (replace with API)
+        // const logs = [
+        //     { timestamp: "2026-03-18 10:30", user: "U101", action: "PASS" },
+        //     { timestamp: "2026-03-18 10:45", user: "U102", action: "FAIL" },
+        //     { timestamp: "2026-03-18 11:00", user: "U103", action: "HALT" }
+        // ];
+
+        const tableBody = document.getElementById('auditTableBody');
+
+        function renderLogs(data) {
+            tableBody.innerHTML = "";
+
+            if (data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="3" class="loading">No logs found</td></tr>`;
+                return;
+            }
+
+            data.forEach(log => {
+                const row = document.createElement('tr');
+
+                let statusClass = log.action_taken.toLowerCase();
+
+                row.innerHTML = `
+                <td>${log.action_timestamp}</td>
+                <td>${log.user_id}</td>
+                <td>
+                    <span class="status ${statusClass}">
+                        ${log.action_taken}
+                    </span>
+                </td>
+            `;
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function filterLogs() {
+            const search = document.getElementById('searchInput').value;
+            const searchNumber = parseInt(search, 10);
+
+            const filtered = logs.filter(log => {
+                // Match exact ID OR partial action string
+                return log.user_id === searchNumber ||
+                    log.action_taken.toLowerCase().includes(search.toLowerCase());
+            });
+
+            renderLogs(filtered);
+        }
+
+        function logout() {
+            alert("Logged out!");
+            window.location.href = "/login";
+        }
+
+        // Initial render
+        renderLogs(logs);
+    </script>
+
 </body>
+
 </html>

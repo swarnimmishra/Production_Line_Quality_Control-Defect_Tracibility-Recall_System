@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defect Analytics | Production Line</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 20px 40px 20px;
+        }
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .top-nav {
+            margin-bottom: 1rem;
+        }
+        
+        .top-nav a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 6px;
+            transition: 0.3s;
+        }
+
+        .top-nav a:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        h2 {
+            margin-bottom: 0.5rem;
+            color: #fff;
+            text-align: center;
+        }
+
+        .header-text {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .summary-card p {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        .summary-card h3 {
+            color: #764ba2;
+            font-size: 1.6rem;
+            margin-bottom: 0;
+        }
+
+        .summary-card span {
+            font-size: 0.9rem;
+            color: #555;
+            font-weight: normal;
+            display: block;
+            margin-top: 5px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+            transition: 0.3s;
+            width: 200px;
+        }
+
+        input:focus {
+            border-color: #764ba2;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            background: #764ba2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #5a378c;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: #fff;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .chart-toggle {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .chart-box {
+            position: relative;
+            height: 350px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        
+        <h2>Defect Analytics Dashboard</h2>
+        <p class="header-text">Production Performance and Failure Diagnostics</p>
+
+        <div class="filter-row">
+            <input type="date" id="date-from">
+            <input type="date" id="date-to">
+            <button class="btn" id="generate-btn">Generate Report</button>
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <p>Most Defective</p>
+                <h3 id="highest-machine-text">Loading...</h3>
+            </div>
+            <div class="summary-card">
+                <p>Highest Defect Op</p>
+                <h3 id="highest-operator-text">Loading...</h3>
+            </div>
+            <div class="summary-card">
+                <p>Top Failure Reason</p>
+                <h3 id="highest-reason-text">Loading...</h3>
+            </div>
+            <div class="summary-card">
+                <p>Highest Impact Batch</p>
+                <h3 id="highest-impact-text">Loading...</h3>
+            </div>
+        </div>
+
+        <div class="analytics-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h3 style="color: #333; font-size: 1.2rem; margin: 0;">Defects by Machine</h3>
+                    <select class="chart-toggle" onchange="switchChartType('machineChart', this.value)">
+                        <option value="bar">Bar Chart</option>
+                        <option value="pie">Pie Chart</option>
+                    </select>
+                </div>
+                <div class="chart-box">
+                    <canvas id="machineChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 style="color: #333; font-size: 1.2rem; margin: 0;">Defects by Operator</h3>
+                    <select class="chart-toggle" onchange="switchChartType('operatorChart', this.value)">
+                        <option value="bar">Bar Chart</option>
+                        <option value="pie">Pie Chart</option>
+                    </select>
+                </div>
+                <div class="chart-box">
+                    <canvas id="operatorChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 style="color: #333; font-size: 1.2rem; margin: 0;">Common Failure Reasons</h3>
+                    <select class="chart-toggle" onchange="switchChartType('reasonChart', this.value)">
+                        <option value="doughnut">Doughnut Chart</option>
+                        <option value="bar">Bar Chart</option>
+                        <option value="pie">Pie Chart</option>
+                    </select>
+                </div>
+                <div class="chart-box">
+                    <canvas id="reasonChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 style="color: #333; font-size: 1.2rem; margin: 0;">Impact by Batch</h3>
+                    <select class="chart-toggle" onchange="switchChartType('impactChart', this.value)">
+                        <option value="bar">Bar Chart</option>
+                        <option value="pie">Pie Chart</option>
+                    </select>
+                </div>
+                <div class="chart-box">
+                    <canvas id="impactChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. SETUP AND GLOBALS ---
+        Chart.register(ChartDataLabels);
+        const activeCharts = {};
+        
+        const themeDeepPurple = '#764ba2';
+        const pieColors = ['#764ba2', '#667eea', '#9b51e0', '#bb6bd9', '#2d9cdb', '#a18cd1', '#89f7fe'];
+
+        // --- 2. CORE CHART RENDERER ---
+        function renderChart(canvasId, type, labels, datasets) {
+            if (activeCharts[canvasId]) {
+                activeCharts[canvasId].destroy();
+            }
+
+            const ctx = document.getElementById(canvasId);
+            const isCircular = type === 'pie' || type === 'doughnut';
+            const isMultiDataset = datasets.length > 1;
+
+            const styledDatasets = datasets.map((ds, index) => {
+                const maxValue = ds.data.length > 0 ? Math.max(...ds.data) : 0;
+                const isSecondary = index === 1;
+
+                return {
+                    ...ds,
+                    backgroundColor: (context) => {
+                        const chart = context.chart;
+                        const { ctx, chartArea } = chart;
+                        if (!chartArea) return themeDeepPurple; 
+
+                        const val = context.dataset.data[context.dataIndex];
+                        
+                        if (isCircular) return pieColors[context.dataIndex % pieColors.length];
+
+                        const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+                        
+                        if (isSecondary) {
+                            gradient.addColorStop(0, '#2d9cdb'); 
+                            gradient.addColorStop(1, '#89f7fe'); 
+                        } else {
+                            if (val === maxValue && val > 0 && !isMultiDataset) {
+                                gradient.addColorStop(0, '#764ba2'); 
+                                gradient.addColorStop(1, '#9b51e0'); 
+                            } else {
+                                gradient.addColorStop(0, '#c3b0d6'); 
+                                gradient.addColorStop(1, '#e2d9eb'); 
+                            }
+                        }
+                        return gradient;
+                    },
+                    borderRadius: isCircular ? 0 : 4
+                };
+            });
+
+            activeCharts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: styledDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: type === 'doughnut' ? '55%' : undefined,
+                    layout: { padding: { top: 35, bottom: isCircular ? 25 : 0, left: isCircular ? 20 : 0, right: isCircular ? 20 : 0 } },
+                    plugins: { 
+                        legend: { display: isCircular || isMultiDataset, position: 'top' },
+                        datalabels: {
+                            display: true,
+                            anchor: isCircular ? 'center' : 'end',
+                            align: isCircular ? 'center' : 'top',
+                            color: (context) => {
+                                if (isCircular) return '#fff';
+                                const val = context.dataset.data[context.dataIndex];
+                                const maxValue = Math.max(...context.dataset.data);
+                                return val === maxValue && val > 0 && !isMultiDataset ? themeDeepPurple : '#666';
+                            },
+                            font: (context) => {
+                                const val = context.dataset.data[context.dataIndex];
+                                const maxValue = Math.max(...context.dataset.data);
+                                const isMax = val === maxValue && val > 0 && !isMultiDataset;
+                                return { weight: isMax || isCircular ? 'bold' : 'normal', size: isMax ? 14 : 11 };
+                            },
+                            formatter: (value, context) => {
+                                if (isCircular) {
+                                    const dataArray = context.chart.data.datasets[context.datasetIndex].data;
+                                    const total = dataArray.reduce((acc, curr) => acc + curr, 0);
+                                    if (total === 0) return '';
+                                    
+                                    // Only return the percentage string for circular charts
+                                    return ((value * 100) / total).toFixed(1) + '%';
+                                }
+                                return value;
+                            }
+                        }
+                    },
+                    scales: isCircular ? { x: { display: false }, y: { display: false } } : { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        // --- 3. TOGGLE HANDLER ---
+        window.switchChartType = function(canvasId, newType) {
+            const chart = activeCharts[canvasId];
+            if (!chart) return;
+            renderChart(canvasId, newType, chart.data.labels, chart.data.datasets);
+        };
+
+        // --- 4. SUMMARY CARD UPDATER ---
+        function updateSummaryCards(machineData, operatorData, reasonData, impactData) {
+            
+            if (machineData && machineData.length > 0) {
+                document.getElementById('highest-machine-text').innerHTML = 
+                    `${machineData[0].machine_name} <br><span>(${machineData[0].defect_count} defects)</span>`;
+            } else {
+                document.getElementById('highest-machine-text').innerText = "No Data";
+            }
+
+            if (operatorData && operatorData.length > 0) {
+                document.getElementById('highest-operator-text').innerHTML = 
+                    `${operatorData[0].operator_name} <br><span>(${operatorData[0].defect_count} defects)</span>`;
+            } else {
+                document.getElementById('highest-operator-text').innerText = "No Data";
+            }
+
+            if (reasonData && reasonData.length > 0) {
+                document.getElementById('highest-reason-text').innerHTML = 
+                    `${reasonData[0].reason} <br><span>(${reasonData[0].defect_count} incidents)</span>`;
+            } else {
+                document.getElementById('highest-reason-text').innerText = "No Data";
+            }
+
+            if (impactData && impactData.length > 0) {
+                document.getElementById('highest-impact-text').innerHTML = 
+                    `${impactData[0].batch_id} <br><span>(${impactData[0].affected_customers} Cust / ${impactData[0].affected_shipments} Ship)</span>`;
+            } else {
+                document.getElementById('highest-impact-text').innerText = "No Data";
+            }
+        }
+
+        // --- DUMMY DATA SECTION ---
+        window.onload = () => {
+            document.getElementById('date-from').value = '2023-10-01';
+            document.getElementById('date-to').value = '2023-10-31';
+
+            const dummyMachineData = [
+                { machine_name: 'MCH-04', defect_count: 42 },
+                { machine_name: 'MCH-02', defect_count: 25 },
+                { machine_name: 'MCH-05', defect_count: 18 },
+                { machine_name: 'MCH-01', defect_count: 15 }
+            ];
+
+            const dummyOperatorData = [
+                { operator_name: 'Operator D', defect_count: 18 },
+                { operator_name: 'Operator B', defect_count: 12 },
+                { operator_name: 'Operator E', defect_count: 9 },
+                { operator_name: 'Operator C', defect_count: 7 }
+            ];
+
+            const dummyReasonData = [
+                { reason: 'Material Flaw', defect_count: 35 },
+                { reason: 'Calibration Error', defect_count: 28 },
+                { reason: 'Overheating', defect_count: 15 },
+                { reason: 'Software Glitch', defect_count: 10 }
+            ];
+
+            const dummyImpactData = [
+                { batch_id: 'BAT-082', affected_customers: 245, affected_shipments: 45 },
+                { batch_id: 'BAT-014', affected_customers: 180, affected_shipments: 30 },
+                { batch_id: 'BAT-055', affected_customers: 95, affected_shipments: 18 },
+                { batch_id: 'BAT-091', affected_customers: 40, affected_shipments: 8 }
+            ];
+
+            updateSummaryCards(dummyMachineData, dummyOperatorData, dummyReasonData, dummyImpactData);
+
+            renderChart('machineChart', 'bar', 
+                dummyMachineData.map(m => m.machine_name), 
+                [{ label: 'Defects', data: dummyMachineData.map(m => m.defect_count) }]
+            );
+
+            renderChart('operatorChart', 'bar', 
+                dummyOperatorData.map(o => o.operator_name), 
+                [{ label: 'Defects', data: dummyOperatorData.map(o => o.defect_count) }]
+            );
+
+            renderChart('reasonChart', 'doughnut', 
+                dummyReasonData.map(r => r.reason), 
+                [{ label: 'Incidents', data: dummyReasonData.map(r => r.defect_count) }]
+            );
+
+            renderChart('impactChart', 'bar', 
+                dummyImpactData.map(i => i.batch_id), 
+                [
+                    { label: 'Customers', data: dummyImpactData.map(i => i.affected_customers) },
+                    { label: 'Shipments', data: dummyImpactData.map(i => i.affected_shipments) }
+                ]
+            );
+        };
+        //--DUMMY DATA SECTION ENDED--
+    </script>
+</body>
+
+</html>

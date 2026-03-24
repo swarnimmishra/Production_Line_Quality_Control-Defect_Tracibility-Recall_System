@@ -18,6 +18,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
+app.use(express.static("dashboards"));
 
 // Session setup
 app.use(session({

@@ -117,7 +117,7 @@
     <div class="dashboard-container">
 
         <!-- Recall Form -->
-        <div id="recall-form">
+        <div id="trace-form">
             <h2>Recall Portal</h2>
             <p>Initiate Shipment Trace</p>
 
@@ -144,12 +144,20 @@
             <tbody></tbody>
         </table>
 
+        <div style="margin-top: 10px;">
+          <p>Recall Shipment</p>
+          <form id="recall-form">
+            <input type="text" id="shipment_id" placeholder="Enter Shipment ID" required>
+            <input type="submit" value="Recall Shipment">
+          </form>
+        </div>
+
     </div>
 
     <script>
-        const recallForm = document.querySelector('#recall-form form');
+        const traceForm = document.querySelector('#trace-form form');
 
-        recallForm.addEventListener('submit', async function (e) {
+        traceForm.addEventListener('submit', async function (e) {
             e.preventDefault();
 
             const batch_id = document.getElementById('batch_id').value;
@@ -162,7 +170,6 @@
 
             const data = await res.json();
 
-            console.log("Trace response:", data);
 
             // Show message
             const messageDiv = document.getElementById('message');
@@ -199,6 +206,25 @@
                 table.style.display = 'none';
             }
         });
+    </script>
+
+    <script>
+    const recallForm = document.getElementById('recall-form');
+
+    recallForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const shipment_id = document.getElementById('shipment_id').value;
+
+      const res = await fetch('/api/recall/recall_shipment',{
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shipment_id })
+      });
+
+      const data = await res.json();
+      alert(data.message);
+    });
     </script>
 
 </body>

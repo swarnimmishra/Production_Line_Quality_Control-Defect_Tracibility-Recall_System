@@ -1,11 +1,47 @@
-# Production_Line_Quality_Control-Defect_Tracibility-Recall_System
+# Production Manager
 
-work in progress
+**Production Line Quality Control Defect Traceability Recall System**
 
+A web-based application designed to manage and monitor production line quality control, track defects, and facilitate product recalls. 
 
-1. admin.html is for adding machine and products.
-2. auditor_dashboard.html is for viewing the audit logs.
-3. index.html is for login and signup.
-4. operator_entry.html is for adding production details by an operator.
-5. qc_inspection.html is used for adding quality checks by inspector.
-6. recall_dashboard.html is used for viewing shipments.
+## Features
+
+*   **Quality Control Monitoring:** Track and manage quality metrics across the production line.
+*   **Defect Traceability:** Log and trace product defects back to their source for root cause analysis.
+*   **Recall Management System:** Efficiently manage and execute product recalls when necessary.
+
+## Tech Stack
+
+This project is built using:
+
+*   **HTML** (Frontend)
+*   **JavaScript / Node.js** (Backend/Logic)
+
+## Getting Started
+
+To get a local copy up and running, follow these simple steps.
+
+### Prerequisites
+
+You will need Node.js and npm installed on your machine.
+*   [Node.js](https://nodejs.org/) (which includes npm)
+
+### Installation & Running the Server
+
+1.  Clone the repository:
+    ```sh
+    git clone https://github.com/Tusharyadav10/Production_Manager.git
+    ```
+2.  Navigate to the project directory:
+    ```sh
+    cd Production_Manager
+    ```
+3.  Install the necessary dependencies:
+    ```sh
+    npm install
+    ```
+4.  Start the server:
+    ```sh
+    node server.js
+    ```
+5.  Open your web browser and navigate to the local server address (typically `http://localhost:3000` or the port specified in your server configuration).

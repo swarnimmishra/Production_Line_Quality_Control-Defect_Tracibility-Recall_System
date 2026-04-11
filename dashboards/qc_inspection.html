@@ -15,10 +15,12 @@
 
         body {
             display: flex;
-            justify-content: center;
+            flex-direction: column; /* Changed to column to allow stacking */
+            justify-content: flex-start;
             align-items: center;
             min-height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
         }
 
         .dashboard-container {
@@ -29,21 +31,13 @@
             width: 100%;
             max-width: 400px;
             text-align: center;
+            margin-bottom: 2rem; /* Space between form and viewer */
         }
 
-        h2 {
-            margin-bottom: 0.5rem;
-            color: #333;
-        }
+        h2 { margin-bottom: 0.5rem; color: #333; }
+        p { color: #666; font-size: 0.9rem; margin-bottom: 1.5rem; }
 
-        p {
-            color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 1.5rem;
-        }
-
-        input,
-        select {
+        input, select {
             width: 100%;
             padding: 12px;
             margin-bottom: 1rem;
@@ -53,9 +47,7 @@
             transition: 0.3s;
         }
 
-        input:focus {
-            border-color: #764ba2;
-        }
+        input:focus { border-color: #764ba2; }
 
         .btn {
             width: 100%;
@@ -70,27 +62,41 @@
             transition: 0.3s;
         }
 
-        .btn:hover {
-            background: #5a378c;
-        }
-        
-        .btn:disabled {
-            background: #a9a9a9;
-            cursor: not-allowed;
+        .btn:hover { background: #5a378c; }
+        .btn:disabled { background: #a9a9a9; cursor: not-allowed; }
+
+        /* Evidence Viewer Specific Styles */
+        .viewer-card {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
         }
 
-        .toggle-text {
-            margin-top: 1rem;
+        #image-display-container {
+            margin-top: 1.5rem;
+            width: 100%;
+            min-height: 200px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
 
-        .toggle-text span {
-            color: #764ba2;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        .hidden {
+        #evidence-preview {
+            max-width: 100%;
+            height: auto;
             display: none;
+        }
+
+        .placeholder-text {
+            color: #aaa;
+            font-size: 0.85rem;
         }
     </style>
 </head>
@@ -100,10 +106,10 @@
         <div id="inspector-form" class="form-box">
             <h2>QC Inspector Portal</h2>
             <p>Evaluate production batches</p>
-            <form action="/" method="POST">
-                <input type="text" name="batch_id" id="batch-id" placeholder="Enter defective Batch ID" required>
-                <input type="text" name="inspector_id" id="inspector-id" placeholder="Enter Inspector ID" required>
-                <input type="text" name="inspection_id" id="inspection-id" placeholder="Enter Inspection ID" required>
+            <form id="qc-form">
+                <input type="text" id="batch-id" placeholder="Enter defective Batch ID" required>
+                <input type="text" id="inspector-id" placeholder="Enter Inspector ID" required>
+                <input type="text" id="inspection-id" placeholder="Enter Inspection ID" required>
                 <select id="inspection-status" required>
                     <option value="">-- Pass or Fail --</option>
                     <option value="Pass">Pass</option>
@@ -116,94 +122,103 @@
                     <option value="cm">Component Missing</option>
                     <option value="ce">Calibration Error</option>
                 </select>
-                <input type="file" id="evidence-image" name="evidence_image" accept="image/*" required>
-                <input type="date" name="inspection_date" id="inspection-date" placeholder="Inspection Date" required>
+                <input type="file" id="evidence-image" accept="image/*" required>
+                <input type="date" id="inspection-date" required>
                 <button type="submit" class="btn" id="submit-btn">Submit Quality Report</button>
             </form>
-
         </div>
+    </div>
 
+    <div class="viewer-card">
+        <h3>Evidence Viewer</h3>
+        <p>Fetch stored evidence from Database</p>
+        <input type="text" id="fetch-batch-id" placeholder="Enter Batch ID to search">
+        <button class="btn" id="fetch-btn" style="background: #667eea;">Fetch Evidence</button>
+        
+        <div id="image-display-container">
+            <span class="placeholder-text" id="status-text">No image loaded</span>
+            <img src="" id="evidence-preview" alt="Batch Evidence">
+        </div>
     </div>
 
     <script>
-        // inspector form submission handler
-        const inspectorForm = document.querySelector('#inspector-form form');
+        // --- Submission Logic ---
+        const inspectorForm = document.getElementById('qc-form');
         const submitBtn = document.getElementById('submit-btn');
 
         inspectorForm.addEventListener('submit', async function (e) {
             e.preventDefault();
-            
-            // Gather text inputs
-            const batch_id = document.getElementById('batch-id').value;
-            const inspector_id = document.getElementById('inspector-id').value;
-            const inspection_id = document.getElementById('inspection-id').value;
-            const status = document.getElementById('inspection-status').value; 
-            const defect = document.getElementById('defect-type').value; 
-            const inspection_date = document.getElementById('inspection-date').value;
-            
-            // Gather the file
-            const file = document.getElementById('evidence-image').files[0];
-
-            if (!file) {
-                alert("Please select an evidence image.");
-                return;
-            }
+            const file = document.getElementById('evidence-image').files;
+            if (!file) return alert("Please select an image.");
 
             try {
-                // Update UI to show loading state
                 submitBtn.disabled = true;
-                submitBtn.textContent = "Uploading Image to S3...";
+                submitBtn.textContent = "Processing...";
 
-                // STEP 1: Get the secure S3 upload ticket from your backend
-                // Note: I assumed your routes are prefixed with /api/inspector based on your fetch URL
+                // 1. Get S3 URL
                 const urlRes = await fetch(`/api/inspector/get_s3_upload_url?filename=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type)}`);
-                
-                if (!urlRes.ok) throw new Error("Could not get S3 upload link from server.");
                 const { uploadUrl, publicUrl } = await urlRes.json();
 
-                // STEP 2: Upload directly to AWS S3
-                const s3Res = await fetch(uploadUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': file.type },
-                    body: file
-                });
+                // 2. Upload to S3
+                await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
 
-                if (!s3Res.ok) throw new Error("Failed to upload image to S3.");
-
-                // Update UI again
-                submitBtn.textContent = "Saving to Database...";
-
-                // STEP 3: Send text data AND the permanent S3 URL to your backend
+                // 3. Save to Supabase (via your inspector.js backend)
                 const res = await fetch('/api/inspector/evaluate_batch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        batch_id, 
-                        inspector_id, 
-                        inspection_id, 
-                        status,       // Matched with backend req.body
-                        defect,       // Matched with backend req.body
-                        evidence: publicUrl, // Passing the S3 URL string!
-                        inspection_date 
+                    body: JSON.stringify({
+                        batch_id: document.getElementById('batch-id').value,
+                        inspector_id: document.getElementById('inspector-id').value,
+                        inspection_id: document.getElementById('inspection-id').value,
+                        status: document.getElementById('inspection-status').value,
+                        defect: document.getElementById('defect-type').value,
+                        evidence: publicUrl,
+                        inspection_date: document.getElementById('inspection-date').value
                     })
                 });
 
-                const data = await res.json();
-                
                 if (res.ok) {
-                    alert(data.message || 'QC inspection successfully completed!');
-                    inspectorForm.reset(); // Clear the form on success
-                } else {
-                    throw new Error(data.message || 'QC inspection failed');
+                    alert('Report Submitted!');
+                    inspectorForm.reset();
                 }
-                
             } catch (err) {
-                console.error(err);
-                alert("An error occurred: " + err.message);
+                alert("Error: " + err.message);
             } finally {
-                // Reset the button back to normal
                 submitBtn.disabled = false;
                 submitBtn.textContent = "Submit Quality Report";
+            }
+        });
+
+        // --- FETCH EVIDENCE LOGIC ---
+        const fetchBtn = document.getElementById('fetch-btn');
+        const fetchInput = document.getElementById('fetch-batch-id');
+        const previewImg = document.getElementById('evidence-preview');
+        const statusText = document.getElementById('status-text');
+
+        fetchBtn.addEventListener('click', async () => {
+            const batchId = fetchInput.value.trim();
+            if (!batchId) return alert("Please enter a Batch ID");
+
+            try {
+                fetchBtn.textContent = "Searching...";
+                statusText.textContent = "Querying Supabase...";
+                previewImg.style.display = "none";
+
+                const response = await fetch(`/api/inspector/get_batch_evidence?batch_id=${batchId}`);
+                const data = await response.json();
+
+                if (response.ok && data.evidenceUrl) {
+                    previewImg.src = data.evidenceUrl; // The AWS S3 URL from DB
+                    previewImg.style.display = "block";
+                    statusText.style.display = "none";
+                } else {
+                    statusText.textContent = "No record found for this ID.";
+                    statusText.style.display = "block";
+                }
+            } catch (err) {
+                statusText.textContent = "Error fetching data.";
+            } finally {
+                fetchBtn.textContent = "Fetch Evidence";
             }
         });
     </script>

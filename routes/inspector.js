@@ -16,11 +16,11 @@ const s3Client = new S3Client({
   },
 });
 
-// 2. NEW ROUTE: Generate the secure S3 upload link
+// Generate the secure S3 upload link
 router.get("/get_s3_upload_url", async (req, res) => {
   try {
     const { filename, fileType } = req.query;
-    
+
     // Create a unique file path (e.g., qc/167890_img_9904.jpg)
     const key = `qc/${Date.now()}_${filename}`;
 
@@ -32,7 +32,7 @@ router.get("/get_s3_upload_url", async (req, res) => {
 
     // Generate a temporary upload URL valid for 60 seconds
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 60 });
-    
+
     // The permanent public link to save in Supabase
     const publicUrl = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 
@@ -43,31 +43,76 @@ router.get("/get_s3_upload_url", async (req, res) => {
   }
 });
 
-// 3. YOUR EXISTING ROUTE (Unchanged)
 router.post("/evaluate_batch", async (req, res) => {
   try {
-      const { batch_id, inspector_id, inspection_id, status, defect, evidence, inspection_date } = req.body; //
+    const { batch_id, inspector_id, inspection_id, status, defect, evidence, inspection_date } = req.body; //
 
-      const { data, error } = await supabase
-          .from("qc_inspections") //
-          .insert([{ //
-              batch_id, //
-              inspector_id, //
-              inspection_id, //
-              status, //
-              defect, //
-              evidence, //
-              inspection_date //
-          }])
-          .select(); //
+    // Convert batch_id to an Integer for int4 column
+    const numericBatchId = parseInt(batch_id, 10);
 
-      if (error) throw error; //
+    if (isNaN(numericBatchId)) {
+      return res.status(400).json({ message: "Invalid Batch ID format. Must be a number." });
+    }
 
-      res.status(201).json({ message: "Batch evaluation completed successfully!", batch: data[0] }); //
-      } catch (err) { //
-      console.error(err); //
-      res.status(500).json({ message: "Server error" }); //
-      }
+    const { data, error } = await supabase
+      .from("qc_inspections")
+      .insert([{
+        batch_id: numericBatchId,
+        inspector_id,
+        inspection_id,
+        status,
+        defect,
+        evidence,
+        inspection_date
+      }])
+      .select();
+
+    if (error) throw error;
+
+    res.status(201).json({ message: "Batch evaluation completed successfully!", batch: data[0] }); //
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
+// Get the image url for a specific batch_id
+router.get('/get_batch_evidence', async (req, res) => {
+    const { batch_id } = req.query;
+    const numericBatchId = parseInt(batch_id, 10);
+
+    console.log("--- Database Query Start ---");
+    console.log("Received string batch_id:", batch_id);
+    console.log("Parsed numericBatchId:", numericBatchId);
+
+    try {
+        if (isNaN(numericBatchId)) {
+            return res.status(400).json({ message: "Batch ID must be a valid number" });
+        }
+
+        // Querying Supabase
+        const { data, error } = await supabase
+            .from('qc_inspections') // Ensure this matches exactly!
+            .select('evidence')
+            .eq('batch_id', numericBatchId) 
+            .maybeSingle(); // maybeSingle returns null instead of an error if not found
+
+        if (error) {
+            console.error("Supabase Query Error:", error.message);
+            return res.status(500).json({ message: "Database error", details: error.message });
+        }
+
+        if (!data) {
+            console.warn(`No record found in Supabase for Batch ID: ${numericBatchId}`);
+            return res.status(404).json({ message: `Batch ID ${numericBatchId} does not exist.` });
+        }
+
+        console.log("Record found! Evidence URL:", data.evidence);
+        return res.status(200).json({ evidenceUrl: data.evidence });
+
+    } catch (err) {
+        console.error("Server Crash:", err);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+});
 module.exports = router; 

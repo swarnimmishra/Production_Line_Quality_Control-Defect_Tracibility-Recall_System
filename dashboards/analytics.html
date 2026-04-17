@@ -188,7 +188,7 @@
         <p>Production Performance and Failure Diagnostics</p>
     </div>
 
-    <div class="controls-bar">
+    <!-- <div class="controls-bar">
         <input type="date" id="startDate" value="2023-10-01" aria-label="Start Date">
         <span style="color: var(--text-muted);">to</span>
         <input type="date" id="endDate" value="2023-10-31" aria-label="End Date">
@@ -196,7 +196,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             Generate Report
         </button>
-    </div>
+    </div> -->
 
     <div class="summary-container">
         <div class="stat-card">
@@ -330,104 +330,150 @@
         observer.observe(canvas);
     }
 
-    // Attach to window and accept 'isInitialLoad' to suppress the first notification
-    window.loadLiveData = async function(isInitialLoad = false) {
-        const btn = document.getElementById('generate-btn');
-        let originalContent = 'Generate Report';
-        
-        if (btn) {
-            originalContent = btn.innerHTML;
-            btn.innerHTML = 'Loading...';
-            btn.style.opacity = '0.7';
-        }
-
+    async function loadLiveData() {
         try {
-            // Mock Data Output
-            const mockResult = {
-                success: true,
-                summary: {
-                    mostDefectiveMachine: { id: "Machine-04", count: 142 },
-                    highestDefectOp: { id: "Op-Sarah", count: 87 },
-                    topFailureReason: { reason: "Calibration", count: 56 },
-                    highestImpactBatch: { batch_id: "B-992", customer_count: 12, shipment_count: 4 }
-                },
-                charts: {
-                    machines: [{name: "M-01", count: 40}, {name: "M-02", count: 25}, {name: "M-03", count: 60}, {name: "M-04", count: 142}],
-                    operators: [{name: "John", count: 30}, {name: "Sarah", count: 87}, {name: "Mike", count: 45}, {name: "Lisa", count: 20}],
-                    reasons: [{reason: "Calibration", count: 56}, {reason: "Overheating", count: 34}, {reason: "Jams", count: 22}],
-                    impact: [{batch_id: "B-990", customer_count: 2, shipment_count: 1}, {batch_id: "B-991", customer_count: 5, shipment_count: 2}, {batch_id: "B-992", customer_count: 12, shipment_count: 4}]
-                }
-            };
+            const response = await fetch('/api/analytics/stats', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
 
-            setTimeout(() => {
-                const sum = mockResult.summary;
+            if (result.success) {
+                const sum = result.summary;
                 document.getElementById('top-machine').innerText = sum.mostDefectiveMachine.id || 'N/A';
-                document.getElementById('top-machine-count').innerText = `${sum.mostDefectiveMachine.count} defects logged`;
+                document.getElementById('top-machine-count').innerText = `(${sum.mostDefectiveMachine.count} defects)`;
 
                 document.getElementById('top-op').innerText = sum.highestDefectOp.id || 'N/A';
-                document.getElementById('top-op-count').innerText = `${sum.highestDefectOp.count} defects logged`;
+                document.getElementById('top-op-count').innerText = `(${sum.highestDefectOp.count} defects)`;
 
                 document.getElementById('top-reason').innerText = sum.topFailureReason.reason || 'N/A';
-                document.getElementById('top-reason-count').innerText = `${sum.topFailureReason.count} total incidents`;
+                document.getElementById('top-reason-count').innerText = `(${sum.topFailureReason.count} incidents)`;
 
                 document.getElementById('top-batch').innerText = sum.highestImpactBatch.batch_id || 'N/A';
-                document.getElementById('top-batch-count').innerText = `${sum.highestImpactBatch.customer_count} Cust / ${sum.highestImpactBatch.shipment_count} Ship impacted`;
+                document.getElementById('top-batch-count').innerText = `(${sum.highestImpactBatch.customer_count} Cust / ${sum.highestImpactBatch.shipment_count} Ship)`;
 
-                const charts = mockResult.charts;
-                const palette1 = ['#4338ca', '#3b82f6', '#0ea5e9', '#38bdf8', '#818cf8'];
-                const palette2 = ['#f43f5e', '#fb7185', '#fda4af', '#fecdd3'];
-                
+                const charts = result.charts;
                 renderChart('machineChart', 'bar', charts.machines.map(m => m.name), [{ 
-                    label: 'Defects Count', 
-                    data: charts.machines.map(m => m.count), 
-                    backgroundColor: '#4338ca', 
-                    borderRadius: 6
+                    label: 'Defects', data: charts.machines.map(m => m.count), backgroundColor: '#a261c0', borderRadius: 4
                 }]);
-                
                 renderChart('operatorChart', 'pie', charts.operators.map(o => o.name), [{ 
-                    data: charts.operators.map(o => o.count), 
-                    backgroundColor: palette1,
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
+                    data: charts.operators.map(o => o.count), backgroundColor: ['#8e44ad', '#5c9ce6', '#b070d6', '#a29bfe'] 
                 }], true);
-                
                 renderChart('reasonChart', 'doughnut', charts.reasons.map(r => r.reason), [{ 
-                    data: charts.reasons.map(r => r.count), 
-                    backgroundColor: palette2,
-                    borderWidth: 2,
-                    borderColor: '#ffffff',
-                    cutout: '65%'
+                    data: charts.reasons.map(r => r.count), backgroundColor: ['#8e44ad', '#5c9ce6', '#b070d6', '#a29bfe'] 
                 }], true);
-                
                 renderChart('impactChart', 'bar', charts.impact.map(i => i.batch_id), [
-                    { label: 'Customers', data: charts.impact.map(i => i.customer_count), backgroundColor: '#14b8a6', borderRadius: 4 },
-                    { label: 'Shipments', data: charts.impact.map(i => i.shipment_count), backgroundColor: '#94a3b8', borderRadius: 4 }
+                    { label: 'Customers', data: charts.impact.map(i => i.customer_count), backgroundColor: '#e0d6eb', borderRadius: 4 },
+                    { label: 'Shipments', data: charts.impact.map(i => i.shipment_count), backgroundColor: '#00cec9', borderRadius: 4 }
                 ]);
-                
-                // FIX: Only show notification if NOT initial load
-                if (!isInitialLoad) {
-                    notify('Dashboard data updated successfully.', 'success');
-                }
-                
-                if (btn) {
-                    btn.innerHTML = originalContent;
-                    btn.style.opacity = '1';
-                }
-            }, 500);
-
+            }
         } catch (err) {
             console.error("Dashboard failed to load:", err);
-            notify('Connection error while fetching analytics.', 'error');
-            if (btn) {
-                btn.innerHTML = originalContent;
-                btn.style.opacity = '1';
-            }
         }
     }
 
-    // Delay the initial load to ensure the DOM and Canvas elements exist. 
-    // Pass `true` so it skips the notification text
-    setTimeout(() => {
-        window.loadLiveData(true);
-    }, 250);
+    // Load data immediately upon script injection
+    loadLiveData();
+
+    // // Attach to window and accept 'isInitialLoad' to suppress the first notification
+    // window.loadLiveData = async function(isInitialLoad = false) {
+    //     const btn = document.getElementById('generate-btn');
+    //     let originalContent = 'Generate Report';
+        
+    //     if (btn) {
+    //         originalContent = btn.innerHTML;
+    //         btn.innerHTML = 'Loading...';
+    //         btn.style.opacity = '0.7';
+    //     }
+
+        
+    //     try {
+    //         // Mock Data Output
+    //         const mockResult = {
+    //             success: true,
+    //             summary: {
+    //                 mostDefectiveMachine: { id: "Machine-04", count: 142 },
+    //                 highestDefectOp: { id: "Op-Sarah", count: 87 },
+    //                 topFailureReason: { reason: "Calibration", count: 56 },
+    //                 highestImpactBatch: { batch_id: "B-992", customer_count: 12, shipment_count: 4 }
+    //             },
+    //             charts: {
+    //                 machines: [{name: "M-01", count: 40}, {name: "M-02", count: 25}, {name: "M-03", count: 60}, {name: "M-04", count: 142}],
+    //                 operators: [{name: "John", count: 30}, {name: "Sarah", count: 87}, {name: "Mike", count: 45}, {name: "Lisa", count: 20}],
+    //                 reasons: [{reason: "Calibration", count: 56}, {reason: "Overheating", count: 34}, {reason: "Jams", count: 22}],
+    //                 impact: [{batch_id: "B-990", customer_count: 2, shipment_count: 1}, {batch_id: "B-991", customer_count: 5, shipment_count: 2}, {batch_id: "B-992", customer_count: 12, shipment_count: 4}]
+    //             }
+    //         };
+
+    //         setTimeout(() => {
+    //             const sum = mockResult.summary;
+    //             document.getElementById('top-machine').innerText = sum.mostDefectiveMachine.id || 'N/A';
+    //             document.getElementById('top-machine-count').innerText = `${sum.mostDefectiveMachine.count} defects logged`;
+
+    //             document.getElementById('top-op').innerText = sum.highestDefectOp.id || 'N/A';
+    //             document.getElementById('top-op-count').innerText = `${sum.highestDefectOp.count} defects logged`;
+
+    //             document.getElementById('top-reason').innerText = sum.topFailureReason.reason || 'N/A';
+    //             document.getElementById('top-reason-count').innerText = `${sum.topFailureReason.count} total incidents`;
+
+    //             document.getElementById('top-batch').innerText = sum.highestImpactBatch.batch_id || 'N/A';
+    //             document.getElementById('top-batch-count').innerText = `${sum.highestImpactBatch.customer_count} Cust / ${sum.highestImpactBatch.shipment_count} Ship impacted`;
+
+    //             const charts = mockResult.charts;
+    //             const palette1 = ['#4338ca', '#3b82f6', '#0ea5e9', '#38bdf8', '#818cf8'];
+    //             const palette2 = ['#f43f5e', '#fb7185', '#fda4af', '#fecdd3'];
+                
+    //             renderChart('machineChart', 'bar', charts.machines.map(m => m.name), [{ 
+    //                 label: 'Defects Count', 
+    //                 data: charts.machines.map(m => m.count), 
+    //                 backgroundColor: '#4338ca', 
+    //                 borderRadius: 6
+    //             }]);
+                
+    //             renderChart('operatorChart', 'pie', charts.operators.map(o => o.name), [{ 
+    //                 data: charts.operators.map(o => o.count), 
+    //                 backgroundColor: palette1,
+    //                 borderWidth: 2,
+    //                 borderColor: '#ffffff'
+    //             }], true);
+                
+    //             renderChart('reasonChart', 'doughnut', charts.reasons.map(r => r.reason), [{ 
+    //                 data: charts.reasons.map(r => r.count), 
+    //                 backgroundColor: palette2,
+    //                 borderWidth: 2,
+    //                 borderColor: '#ffffff',
+    //                 cutout: '65%'
+    //             }], true);
+                
+    //             renderChart('impactChart', 'bar', charts.impact.map(i => i.batch_id), [
+    //                 { label: 'Customers', data: charts.impact.map(i => i.customer_count), backgroundColor: '#14b8a6', borderRadius: 4 },
+    //                 { label: 'Shipments', data: charts.impact.map(i => i.shipment_count), backgroundColor: '#94a3b8', borderRadius: 4 }
+    //             ]);
+                
+    //             // FIX: Only show notification if NOT initial load
+    //             if (!isInitialLoad) {
+    //                 notify('Dashboard data updated successfully.', 'success');
+    //             }
+                
+    //             if (btn) {
+    //                 btn.innerHTML = originalContent;
+    //                 btn.style.opacity = '1';
+    //             }
+    //         }, 500);
+
+    //     } catch (err) {
+    //         console.error("Dashboard failed to load:", err);
+    //         notify('Connection error while fetching analytics.', 'error');
+    //         if (btn) {
+    //             btn.innerHTML = originalContent;
+    //             btn.style.opacity = '1';
+    //         }
+    //     }
+    // }
+
+    // // Delay the initial load to ensure the DOM and Canvas elements exist. 
+    // // Pass `true` so it skips the notification text
+    // setTimeout(() => {
+    //     window.loadLiveData(true);
+    // }, 250);
 </script>

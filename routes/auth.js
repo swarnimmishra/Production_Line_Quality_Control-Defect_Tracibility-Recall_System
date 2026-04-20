@@ -33,8 +33,9 @@ router.post("/signup", async (req, res) => {
 
     if (error) throw error;
 
+    res.json({ message: "Signup successful", success: true });
     // Redirect to login page
-    res.redirect("/index.html");
+    // res.redirect("/index.html");
 
     // Save session
     // req.session.user = { user_id: user.user_id, role: user.role, name: user.name };

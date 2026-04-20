@@ -121,9 +121,10 @@ signupFormElement.addEventListener('submit', async function (e) {
 
         const data = await res.json();
 
-        if (data.redirect) {
-            window.location.href = `/${data.user.role}/dashboard`;
-        } else if (res.ok || data.success) {
+        // if (data.redirect) {
+        //     window.location.href = `/${data.user.role}/dashboard`;
+        // } else
+        if (res.ok || data.success) {
             showNotification(data.message || 'Account created successfully! Please log in.', 'success');
             toggleForm('login');
             this.reset();

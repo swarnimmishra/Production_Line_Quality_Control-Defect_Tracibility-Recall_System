@@ -1,10 +1,24 @@
-// Check for user data in storage and update header
-try {
-    const userObj = JSON.parse(localStorage.getItem('user'));
-    if (userObj && userObj.name) {
-        document.getElementById('active-user-display').textContent = userObj.name;
+// Check authentication on page load
+async function checkAuth() {
+    try {
+        const res = await fetch('/api/auth/check-session', {
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            window.location.replace("/");
+            return;
+        }
+
+        const data = await res.json();
+        document.getElementById('active-user-display').textContent = data.user.name;
+
+    } catch (err) {
+        window.location.replace("/");
     }
-} catch (e) { /* default to System Auditor */ }
+}
+
+checkAuth();
 
 // --- Notification System ---
 function showNotification(message, type = 'info') {
@@ -26,11 +40,27 @@ function showNotification(message, type = 'info') {
 }
 
 // --- Logout Logic ---
-function handleLogout() {
-    if (confirm("Are you sure you want to securely log out?")) {
+async function handleLogout() {
+    if (!confirm("Are you sure you want to securely log out?")) return;
+
+    try {
+        const res = await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        console.log("Logout status:", res.status);
+
         localStorage.clear();
         sessionStorage.clear();
-        window.location.href = "/";
+
+        window.location.replace("/");
+
+    } catch (err) {
+        console.error("Logout error:", err);
+
+        localStorage.clear();
+        window.location.replace("/");
     }
 }
 

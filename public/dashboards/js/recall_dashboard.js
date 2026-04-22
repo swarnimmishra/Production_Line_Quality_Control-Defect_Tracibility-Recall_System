@@ -1,10 +1,24 @@
-// Check for user data
-try {
-    const userObj = JSON.parse(localStorage.getItem('user'));
-    if (userObj && userObj.name) {
-        document.getElementById('active-user-display').textContent = userObj.name;
+// Check authentication on page load
+async function checkAuth() {
+    try {
+        const res = await fetch('/api/auth/check-session', {
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            window.location.replace("/");
+            return;
+        }
+
+        const data = await res.json();
+        document.getElementById('active-user-display').textContent = data.user.name;
+
+    } catch (err) {
+        window.location.replace("/");
     }
-} catch (e) { }
+}
+
+checkAuth();
 
 document.getElementById('add_delivery_date').valueAsDate = new Date();
 
@@ -21,13 +35,30 @@ function showNotification(message, type = 'info') {
     }, 4000);
 }
 
-function handleLogout() {
-    if (confirm("Are you sure you want to log out?")) {
+// --- Logout Logic ---
+async function handleLogout() {
+    if (!confirm("Are you sure you want to securely log out?")) return;
+
+    try {
+        const res = await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        console.log("Logout status:", res.status);
+
         localStorage.clear();
-        window.location.href = "/";
+        sessionStorage.clear();
+
+        window.location.replace("/");
+
+    } catch (err) {
+        console.error("Logout error:", err);
+
+        localStorage.clear();
+        window.location.replace("/");
     }
 }
-
 // --- Fetch Defective Shipments Table ---
 async function fetchAndRenderDefectiveShipments() {
     const tbody = document.querySelector('#defective-batches-tbody');
@@ -61,46 +92,46 @@ async function fetchAndRenderDefectiveShipments() {
 }
 
 // --- Trace Form Logic ---
-document.getElementById('trace-form').addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const btn = document.getElementById('trace-btn');
-    const batch_id = document.getElementById('batch_id').value;
-    const container = document.getElementById('table-container');
-    const tbody = document.querySelector('#trace-results-table tbody');
+// document.getElementById('trace-form').addEventListener('submit', async function (e) {
+//     e.preventDefault();
+//     const btn = document.getElementById('trace-btn');
+//     const batch_id = document.getElementById('batch_id').value;
+//     const container = document.getElementById('table-container');
+//     const tbody = document.querySelector('#trace-results-table tbody');
 
-    btn.disabled = true;
-    try {
-        const res = await fetch('/api/recall/trace', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ batch_id })
-        });
-        const data = await res.json();
+//     btn.disabled = true;
+//     try {
+//         const res = await fetch('/api/recall/trace', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ batch_id })
+//         });
+//         const data = await res.json();
 
-        tbody.innerHTML = '';
-        if (data.shipments && data.shipments.length > 0) {
-            container.style.display = 'block';
-            data.shipments.forEach(s => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                            <td><strong>${s.shipment_id}</strong></td>
-                            <td>${s.batch_id}</td>
-                            <td>${s.customer_name}</td>
-                            <td>${new Date(s.delivery_date).toLocaleDateString()}</td>
-                            <td><span class="status ${s.status.toLowerCase()}">${s.status}</span></td>
-                        `;
-                tbody.appendChild(tr);
-            });
-        } else {
-            container.style.display = 'none';
-            showNotification("No shipments found for this batch.", "warning");
-        }
-    } catch (err) {
-        showNotification("Error scanning shipments.", "error");
-    } finally {
-        btn.disabled = false;
-    }
-});
+//         tbody.innerHTML = '';
+//         if (data.shipments && data.shipments.length > 0) {
+//             container.style.display = 'block';
+//             data.shipments.forEach(s => {
+//                 const tr = document.createElement('tr');
+//                 tr.innerHTML = `
+//                             <td><strong>${s.shipment_id}</strong></td>
+//                             <td>${s.batch_id}</td>
+//                             <td>${s.customer_name}</td>
+//                             <td>${new Date(s.delivery_date).toLocaleDateString()}</td>
+//                             <td><span class="status ${s.status.toLowerCase()}">${s.status}</span></td>
+//                         `;
+//                 tbody.appendChild(tr);
+//             });
+//         } else {
+//             container.style.display = 'none';
+//             showNotification("No shipments found for this batch.", "warning");
+//         }
+//     } catch (err) {
+//         showNotification("Error scanning shipments.", "error");
+//     } finally {
+//         btn.disabled = false;
+//     }
+// });
 
 // --- Execute Recall Logic ---
 document.getElementById('recall-form').addEventListener('submit', async function (e) {
@@ -115,6 +146,9 @@ document.getElementById('recall-form').addEventListener('submit', async function
         if (res.ok) {
             showNotification("Recall processed successfully.", "success");
             fetchAndRenderDefectiveShipments();
+        } else {
+            data = await res.json();
+            showNotification(data.message, "error");
         }
     } catch (err) {
         showNotification("Recall failed.", "error");

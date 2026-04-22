@@ -66,9 +66,9 @@ router.post("/recall_shipment", async (req, res) => {
 
     } else {
       if (shipmentStatus === "Recalled")
-      res.json({ message: "Error: Shipment already recalled" });
+      return res.status(400).json({ message: "Error: Shipment already recalled" });
       else
-      res.json({ message: `Error: Shipment is ${shipmentStatus}` });
+      return res.status(400).json({ message: `Error: Shipment is ${shipmentStatus}` });
     }
   } catch (err) {
     console.error(err);

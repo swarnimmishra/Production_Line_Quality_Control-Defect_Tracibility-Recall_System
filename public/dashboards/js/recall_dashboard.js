@@ -146,6 +146,9 @@ document.getElementById('recall-form').addEventListener('submit', async function
         if (res.ok) {
             showNotification("Recall processed successfully.", "success");
             fetchAndRenderDefectiveShipments();
+        } else {
+            data = await res.json();
+            showNotification(data.message, "error");
         }
     } catch (err) {
         showNotification("Recall failed.", "error");

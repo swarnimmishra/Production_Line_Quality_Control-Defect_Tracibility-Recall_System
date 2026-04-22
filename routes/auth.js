@@ -89,7 +89,23 @@ router.post("/login", async (req, res) => {
 
 // LOGOUT
 router.post("/logout", (req, res) => {
-    req.session.destroy();
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({ message: "Logout failed" });
+        }
+
+        res.clearCookie("connect.sid");
+        return res.status(200).json({ message: "Logged out" });
+    });
+});
+
+// CHECK SESSION
+router.get("/check-session", (req, res) => {
+    if (req.session.user) {
+        return res.json({ loggedIn: true, user: req.session.user });
+    } else {
+        return res.status(401).json({ loggedIn: false });
+    }
 });
 
 module.exports = router;
